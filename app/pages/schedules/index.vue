@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { BREAK_HOURS, BREAK_THRESHOLD_HOURS, MANAGER_ROLES, ROLE_GROUPS, ROLE_ORDER, STORE_CLOSING_TIME, STORE_OPENING_TIME } from '~/types'
+import { ABSENCE_TYPE_COLORS, ABSENCE_TYPE_LABELS, BREAK_HOURS, BREAK_THRESHOLD_HOURS, MANAGER_ROLES, ROLE_GROUPS, ROLE_ORDER, STORE_CLOSING_TIME, STORE_OPENING_TIME } from '~/types'
 
-const { employeesByStore, employeeById, shiftFor, setShiftTimes, setDayOff, vacations, auditForStore } = useAppData()
+const { employeesByStore, employeeById, shiftFor, setShiftTimes, setDayOff, vacations, auditForStore, absenceOnDay } = useAppData()
 const { currentStore, currentUser } = useSession()
 const { confirm: confirmAction } = useConfirm()
 const toast = useToast()
@@ -50,6 +50,10 @@ function entryFor(employeeId: string, day: Date) {
 function isOnVacation(employeeId: string, day: Date) {
   const iso = toISODate(day)
   return vacations.value.some(v => v.employeeId === employeeId && v.status === 'aprovado' && isDateInRange(iso, v.startDate, v.endDate))
+}
+
+function absenceFor(employeeId: string, day: Date) {
+  return absenceOnDay(employeeId, toISODate(day))
 }
 
 function commitShift(employeeId: string, day: Date, startTime: string, endTime: string) {
@@ -410,7 +414,8 @@ function weeklyHoursColor(employeeId: string, weeklyHours: number) {
                   :start-time="entryFor(employee.id, day)?.startTime ?? null"
                   :end-time="entryFor(employee.id, day)?.endTime ?? null"
                   :editable="canEdit"
-                  :on-vacation="isOnVacation(employee.id, day)"
+                  :absence-label="absenceFor(employee.id, day) ? ABSENCE_TYPE_LABELS[absenceFor(employee.id, day)!.type] : null"
+                  :absence-color="absenceFor(employee.id, day) ? ABSENCE_TYPE_COLORS[absenceFor(employee.id, day)!.type] : undefined"
                   @commit="(start, end) => commitShift(employee.id, day, start, end)"
                   @day-off="commitDayOff(employee.id, day)"
                 />

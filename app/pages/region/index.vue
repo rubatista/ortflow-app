@@ -142,7 +142,7 @@ function enterStore(storeId: string) {
               {{ regionStats.pendingVacations }}
             </p>
             <p class="text-sm text-muted mt-1 break-words">
-              Férias pendentes
+              Ausências pendentes
             </p>
           </div>
         </div>
@@ -177,7 +177,7 @@ function enterStore(storeId: string) {
                 Em turno hoje
               </th>
               <th class="text-center font-medium text-muted pb-2 px-2">
-                Férias pendentes
+                Ausências pendentes
               </th>
               <th class="pb-2" />
             </tr>

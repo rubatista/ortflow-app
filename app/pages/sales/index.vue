@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { MANAGER_ROLES, PODIUM_COLORS } from '~/types'
+import { ABSENCE_TYPE_COLORS, ABSENCE_TYPE_LABELS, MANAGER_ROLES, PODIUM_COLORS } from '~/types'
 
-const { employeesByStore, employeeSalesFor, setEmployeeSales, storeSalesFor, setStoreSales, shiftFor, vacations } = useAppData()
+const { employeesByStore, employeeSalesFor, setEmployeeSales, storeSalesFor, setStoreSales, shiftFor, vacations, absenceOnDay } = useAppData()
 const { currentStore, currentUser } = useSession()
 
 const canEdit = computed(() => Boolean(currentUser.value && MANAGER_ROLES.includes(currentUser.value.role)))
@@ -421,12 +421,12 @@ const weeklyAchievedPct = computed(() => {
                 :class="isToday(day) ? 'bg-primary/5' : ''"
               >
                 <UBadge
-                  v-if="isOnVacation(employee.id, day)"
-                  color="success"
+                  v-if="absenceOnDay(employee.id, toISODate(day))"
+                  :color="ABSENCE_TYPE_COLORS[absenceOnDay(employee.id, toISODate(day))!.type]"
                   variant="subtle"
                   class="w-full justify-center"
                 >
-                  Férias
+                  {{ ABSENCE_TYPE_LABELS[absenceOnDay(employee.id, toISODate(day))!.type] }}
                 </UBadge>
                 <UBadge
                   v-else-if="isDayOff(employee.id, day)"
