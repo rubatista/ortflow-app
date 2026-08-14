@@ -101,11 +101,11 @@ function employeeById(id: string) {
             :icon="stat.icon"
             :color="stat.color"
           />
-          <div>
+          <div class="min-w-0">
             <p class="text-2xl font-bold text-highlighted leading-none">
               {{ stat.value }}
             </p>
-            <p class="text-sm text-muted mt-1">
+            <p class="text-sm text-muted mt-1 break-words">
               {{ stat.label }}
             </p>
           </div>

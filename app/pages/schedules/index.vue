@@ -4,6 +4,7 @@ import { BREAK_HOURS, BREAK_THRESHOLD_HOURS, MANAGER_ROLES, ROLE_GROUPS, ROLE_OR
 const { employeesByStore, employeeById, shiftFor, setShiftTimes, setDayOff, vacations, auditForStore } = useAppData()
 const { currentStore, currentUser } = useSession()
 const { confirm: confirmAction } = useConfirm()
+const toast = useToast()
 
 const canEdit = computed(() => Boolean(currentUser.value && MANAGER_ROLES.includes(currentUser.value.role)))
 
@@ -121,6 +122,76 @@ async function copyPreviousWeek() {
   }
 }
 
+const aiPrompt = ref('')
+const aiLoading = ref(false)
+
+interface AiScheduleAssignment {
+  employeeId: string
+  date: string
+  startTime: string | null
+  endTime: string | null
+}
+
+async function generateWithAI() {
+  const actor = currentUser.value
+  const store = currentStore.value
+  if (!actor || !store || !aiPrompt.value.trim()) return
+
+  const confirmed = await confirmAction({
+    title: 'Gerar horário com IA',
+    description: 'Isto substitui os horários já definidos para esta semana, consoante o pedido feito à IA.',
+    confirmLabel: 'Gerar',
+    color: 'primary',
+    icon: 'i-lucide-sparkles'
+  })
+  if (!confirmed) return
+
+  aiLoading.value = true
+  try {
+    const employeesPayload = employeesByStore(store.id).map(employee => ({
+      id: employee.id,
+      name: employee.name,
+      role: employee.role,
+      weeklyHours: employee.weeklyHours,
+      vacationDates: weekDays.value.filter(day => isOnVacation(employee.id, day)).map(day => toISODate(day))
+    }))
+
+    const result = await $fetch<{ assignments: AiScheduleAssignment[] }>('/api/schedules/generate', {
+      method: 'POST',
+      body: {
+        prompt: aiPrompt.value.trim(),
+        storeOpeningTime: STORE_OPENING_TIME,
+        storeClosingTime: STORE_CLOSING_TIME,
+        weekDays: weekDays.value.map(toISODate),
+        employees: employeesPayload
+      }
+    })
+
+    const validDates = new Set(weekDays.value.map(toISODate))
+
+    for (const assignment of result.assignments) {
+      const employee = employeeById(assignment.employeeId)
+      if (!employee || employee.storeId !== store.id) continue
+      if (!validDates.has(assignment.date)) continue
+      if (isOnVacation(assignment.employeeId, parseISODate(assignment.date))) continue
+
+      if (assignment.startTime && assignment.endTime) {
+        setShiftTimes(assignment.employeeId, assignment.date, assignment.startTime, assignment.endTime, actor.id)
+      } else {
+        setDayOff(assignment.employeeId, assignment.date, actor.id)
+      }
+    }
+
+    aiPrompt.value = ''
+    toast.add({ title: 'Horário gerado', description: 'A IA aplicou o horário pedido.', color: 'success' })
+  } catch (err) {
+    const description = (err as { data?: { statusMessage?: string } })?.data?.statusMessage ?? 'Tenta novamente.'
+    toast.add({ title: 'Erro ao gerar horário', description, color: 'error' })
+  } finally {
+    aiLoading.value = false
+  }
+}
+
 const storeAudit = computed(() => {
   if (!currentStore.value) return []
   return auditForStore(currentStore.value.id)
@@ -169,7 +240,7 @@ function weeklyHoursColor(employeeId: string, weeklyHours: number) {
           Apenas o gerente e os subgerentes podem alterar horários.
         </p>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
         <UButton
           icon="i-lucide-chevron-left"
           color="neutral"
@@ -194,7 +265,7 @@ function weeklyHoursColor(employeeId: string, weeklyHours: number) {
           icon="i-lucide-printer"
           color="neutral"
           variant="subtle"
-          to="/horarios/imprimir"
+          to="/schedules/print"
         />
         <UButton
           v-if="canEdit"
@@ -214,6 +285,40 @@ function weeklyHoursColor(employeeId: string, weeklyHours: number) {
         />
       </div>
     </div>
+
+    <UCard v-if="canEdit">
+      <template #header>
+        <div class="flex items-center gap-2.5">
+          <SectionIcon
+            icon="i-lucide-sparkles"
+            color="primary"
+            size="sm"
+          />
+          <h2 class="font-semibold text-highlighted">
+            Gerar horário com IA
+          </h2>
+        </div>
+      </template>
+
+      <div class="flex flex-col gap-3">
+        <UTextarea
+          v-model="aiPrompt"
+          placeholder="Ex: A Sara só pode trabalhar até às 18h esta semana e o José Alberto quer folgar no sábado."
+          :rows="2"
+          autoresize
+          class="w-full"
+        />
+        <div class="flex justify-end">
+          <UButton
+            label="Gerar"
+            icon="i-lucide-sparkles"
+            :loading="aiLoading"
+            :disabled="!aiPrompt.trim()"
+            @click="generateWithAI"
+          />
+        </div>
+      </div>
+    </UCard>
 
     <div
       v-if="groupedEmployees.length === 0"

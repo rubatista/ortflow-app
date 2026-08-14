@@ -13,7 +13,7 @@ const employee = computed(() => employeeById(employeeId.value))
 onMounted(() => {
   const isOwnProfile = employee.value?.id === currentUser.value?.id
   if (!employee.value || (!isOwnProfile && employee.value.storeId !== currentStore.value?.id)) {
-    navigateTo('/equipas')
+    navigateTo('/team')
   }
 })
 
@@ -146,7 +146,7 @@ const employeeVacations = computed(() => {
         color="neutral"
         variant="ghost"
         size="sm"
-        to="/equipas"
+        to="/team"
       />
       <p class="text-sm text-muted">
         Equipa / {{ employee.name }}

@@ -102,8 +102,8 @@ async function confirmRemoveMember(id: string, name: string) {
         <li
           v-for="member in storeEmployees"
           :key="member.id"
-          class="flex items-center justify-between gap-3 py-3 cursor-pointer hover:bg-elevated/40 rounded-lg px-2 -mx-2"
-          @click="navigateTo(`/equipas/${member.id}`)"
+          class="flex flex-wrap items-center justify-between gap-3 py-3 cursor-pointer hover:bg-elevated/40 rounded-lg px-2 -mx-2"
+          @click="navigateTo(`/team/${member.id}`)"
         >
           <div class="flex items-center gap-2.5 min-w-0">
             <PersonAvatar
@@ -120,7 +120,7 @@ async function confirmRemoveMember(id: string, name: string) {
               </p>
             </div>
           </div>
-          <div class="flex items-center gap-2 shrink-0">
+          <div class="flex flex-wrap items-center gap-2">
             <UBadge
               :color="ROLE_COLORS[member.role]"
               variant="subtle"
