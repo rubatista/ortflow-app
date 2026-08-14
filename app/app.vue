@@ -19,7 +19,7 @@ useHead({
 })
 
 const title = 'OrtFlow'
-const description = 'Gestão de equipas, horários e mapa de férias.'
+const description = 'Gestão de equipas, horários e ausências.'
 
 useSeoMeta({
   title,
@@ -45,7 +45,7 @@ const links = computed(() => {
     { label: 'Equipa', to: '/team', icon: 'i-lucide-users' },
     { label: 'Horários', to: '/schedules', icon: 'i-lucide-calendar-clock' },
     { label: 'Vendas', to: '/sales', icon: 'i-lucide-trending-up' },
-    { label: 'Férias', to: '/vacations', icon: 'i-lucide-tree-palm' }
+    { label: 'Ausências', to: '/vacations', icon: 'i-lucide-calendar-x' }
   )
   if (canManage.value) {
     items.push({ label: 'Objetivos', to: '/targets', icon: 'i-lucide-target' })
@@ -236,7 +236,7 @@ const userMenuItems = computed(() => {
         </template>
 
         <template #body>
-          <UContainer class="py-8 print:max-w-none print:p-0">
+          <UContainer class="py-8 px-0 print:max-w-none print:p-0">
             <NuxtPage />
           </UContainer>
         </template>

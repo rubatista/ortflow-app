@@ -79,21 +79,61 @@ export interface AppNotification {
 
 export type VacationStatus = 'pendente' | 'aprovado' | 'rejeitado'
 
+/** Tipos de ausência suportados. Só "ferias" desconta do saldo de dias de férias anuais. */
+export type AbsenceType = 'ferias' | 'baixa_medica' | 'casamento' | 'licenca_parental' | 'gravidez_risco' | 'outro'
+
+export type BadgeColor = 'success' | 'error' | 'warning' | 'info' | 'primary' | 'secondary' | 'neutral'
+
+export const ABSENCE_TYPE_LABELS: Record<AbsenceType, string> = {
+  ferias: 'Férias',
+  baixa_medica: 'Baixa médica',
+  casamento: 'Casamento',
+  licenca_parental: 'Licença parental',
+  gravidez_risco: 'Baixa de gravidez de risco',
+  outro: 'Outro'
+}
+
+export const ABSENCE_TYPE_ICONS: Record<AbsenceType, string> = {
+  ferias: 'i-lucide-tree-palm',
+  baixa_medica: 'i-lucide-stethoscope',
+  casamento: 'i-lucide-heart',
+  licenca_parental: 'i-lucide-baby',
+  gravidez_risco: 'i-lucide-shield-alert',
+  outro: 'i-lucide-ellipsis'
+}
+
+export const ABSENCE_TYPE_COLORS: Record<AbsenceType, BadgeColor> = {
+  ferias: 'success',
+  baixa_medica: 'error',
+  casamento: 'secondary',
+  licenca_parental: 'info',
+  gravidez_risco: 'warning',
+  outro: 'neutral'
+}
+
+export const ABSENCE_TYPE_OPTIONS = (Object.keys(ABSENCE_TYPE_LABELS) as AbsenceType[]).map(value => ({
+  label: ABSENCE_TYPE_LABELS[value],
+  value
+}))
+
 export interface VacationRequest {
   id: string
   employeeId: string
+  /** Tipo de ausência. "ferias" é o único tipo que desconta do saldo anual. */
+  type: AbsenceType
   startDate: string
   endDate: string
   status: VacationStatus
   notes?: string
 }
 
-export type VacationAuditAction = 'aprovado' | 'rejeitado' | 'eliminado'
+export type VacationAuditAction = 'aprovado' | 'rejeitado' | 'eliminado' | 'editado'
 
 export interface VacationAuditEntry {
   id: string
   /** Colaborador a quem pertence o pedido de férias. */
   employeeId: string
+  type: AbsenceType
   startDate: string
   endDate: string
   action: VacationAuditAction
@@ -105,13 +145,15 @@ export interface VacationAuditEntry {
 export const VACATION_AUDIT_LABELS: Record<VacationAuditAction, string> = {
   aprovado: 'aprovou',
   rejeitado: 'rejeitou',
-  eliminado: 'eliminou'
+  eliminado: 'eliminou',
+  editado: 'editou'
 }
 
-export const VACATION_AUDIT_COLORS: Record<VacationAuditAction, 'success' | 'error' | 'neutral'> = {
+export const VACATION_AUDIT_COLORS: Record<VacationAuditAction, 'success' | 'error' | 'neutral' | 'info'> = {
   aprovado: 'success',
   rejeitado: 'error',
-  eliminado: 'neutral'
+  eliminado: 'neutral',
+  editado: 'info'
 }
 
 export const ROLE_LABELS: Record<Role, string> = {

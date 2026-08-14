@@ -1,7 +1,29 @@
 <script setup lang="ts">
-import { MANAGER_ROLES, VACATION_AUDIT_COLORS, VACATION_AUDIT_LABELS, VACATION_STATUS_COLORS } from '~/types'
+import type { AbsenceType, BadgeColor } from '~/types'
+import { ABSENCE_TYPE_COLORS, ABSENCE_TYPE_LABELS, ABSENCE_TYPE_OPTIONS, MANAGER_ROLES, VACATION_AUDIT_COLORS, VACATION_AUDIT_LABELS, VACATION_STATUS_COLORS } from '~/types'
 
-const { employeesByStore, employeeById, vacations, employeesOnVacation, addVacation, setVacationStatus, removeVacation, vacationAuditForStore, vacationDaysUsed, vacationDaysPending } = useAppData()
+/** Classes literais (o Tailwind não compila `bg-${cor}` gerado dinamicamente). */
+const DOT_COLOR_CLASSES: Record<BadgeColor, string> = {
+  success: 'bg-success',
+  error: 'bg-error',
+  warning: 'bg-warning',
+  info: 'bg-info',
+  primary: 'bg-primary',
+  secondary: 'bg-secondary',
+  neutral: 'bg-neutral'
+}
+
+const RING_COLOR_CLASSES: Record<BadgeColor, string> = {
+  success: 'ring-success',
+  error: 'ring-error',
+  warning: 'ring-warning',
+  info: 'ring-info',
+  primary: 'ring-primary',
+  secondary: 'ring-secondary',
+  neutral: 'ring-neutral'
+}
+
+const { employeesByStore, employeeById, vacations, employeesOnVacation, absenceOnDay, addVacation, setVacationStatus, removeVacation, updateVacation, vacationAuditForStore, vacationDaysUsed, vacationDaysPending } = useAppData()
 const { currentStore, currentUser } = useSession()
 const { confirm: confirmAction } = useConfirm()
 
@@ -10,6 +32,11 @@ const isManager = computed(() => Boolean(currentUser.value && MANAGER_ROLES.incl
 function canRemove(vacation: { employeeId: string, status: string }) {
   if (isManager.value) return true
   return vacation.employeeId === currentUser.value?.id && vacation.status !== 'aprovado'
+}
+
+/** Um gerente não pode aprovar/rejeitar o seu próprio pedido. */
+function canDecide(vacation: { employeeId: string }) {
+  return isManager.value && vacation.employeeId !== currentUser.value?.id
 }
 
 function approve(id: string) {
@@ -23,8 +50,8 @@ function reject(id: string) {
 async function remove(id: string) {
   if (!currentUser.value) return
   const confirmed = await confirmAction({
-    title: 'Eliminar pedido de férias',
-    description: 'Tens a certeza que queres eliminar este pedido de férias? Esta ação não pode ser desfeita.',
+    title: 'Eliminar pedido de ausência',
+    description: 'Tens a certeza que queres eliminar este pedido de ausência? Esta ação não pode ser desfeita.',
     confirmLabel: 'Eliminar',
     icon: 'i-lucide-trash-2'
   })
@@ -112,13 +139,44 @@ function employeesOnVacationInStore(iso: string) {
   return employeesOnVacation(iso).filter(e => employeeIds.value.has(e.id))
 }
 
-const isRequestModalOpen = ref(false)
-const newRequest = reactive({ employeeId: '', startDate: '', endDate: '', notes: '' })
+/** Cor do anel do avatar (desktop) consoante o tipo de ausência da pessoa neste dia. */
+function ringColorFor(employeeId: string, iso: string) {
+  const type = absenceOnDay(employeeId, iso)?.type ?? 'ferias'
+  return RING_COLOR_CLASSES[ABSENCE_TYPE_COLORS[type]]
+}
 
-const employeeOptions = computed(() => employees.value.map(e => ({ label: e.name, value: e.id })))
+/** Tipos de ausência distintos presentes neste dia, nesta loja (para o indicador compacto no mobile). */
+function absenceTypesForDay(iso: string): AbsenceType[] {
+  const types = new Set<AbsenceType>()
+  for (const employee of employeesOnVacationInStore(iso)) {
+    const record = vacations.value.find(v => v.employeeId === employee.id && v.status === 'aprovado' && isDateInRange(iso, v.startDate, v.endDate))
+    if (record) types.add(record.type)
+  }
+  return Array.from(types)
+}
+
+const selectedDay = ref<{ date: Date, iso: string } | null>(null)
+const isDayModalOpen = ref(false)
+
+function openDayModal(date: Date, iso: string) {
+  selectedDay.value = { date, iso }
+  isDayModalOpen.value = true
+}
+
+const selectedDayEmployees = computed(() => {
+  if (!selectedDay.value) return []
+  const iso = selectedDay.value.iso
+  return employeesOnVacationInStore(iso).map(employee => ({
+    employee,
+    vacation: vacations.value.find(v => v.employeeId === employee.id && v.status === 'aprovado' && isDateInRange(iso, v.startDate, v.endDate))
+  }))
+})
+
+const isRequestModalOpen = ref(false)
+const newRequest = reactive({ type: 'ferias' as AbsenceType, startDate: '', endDate: '', notes: '' })
 
 function openRequestModal() {
-  newRequest.employeeId = isManager.value ? (employees.value[0]?.id ?? '') : (currentUser.value?.id ?? '')
+  newRequest.type = 'ferias'
   newRequest.startDate = toISODate(new Date())
   newRequest.endDate = toISODate(new Date())
   newRequest.notes = ''
@@ -126,15 +184,47 @@ function openRequestModal() {
 }
 
 function submitRequest() {
-  if (!newRequest.employeeId || !newRequest.startDate || !newRequest.endDate) return
+  if (!currentUser.value || !newRequest.startDate || !newRequest.endDate) return
   if (newRequest.endDate < newRequest.startDate) return
   addVacation({
-    employeeId: newRequest.employeeId,
+    employeeId: currentUser.value.id,
+    type: newRequest.type,
     startDate: newRequest.startDate,
     endDate: newRequest.endDate,
     notes: newRequest.notes.trim() || undefined
   })
   isRequestModalOpen.value = false
+}
+
+function canEdit(vacation: { employeeId: string }) {
+  return vacation.employeeId === currentUser.value?.id
+}
+
+const isEditModalOpen = ref(false)
+const editingVacationId = ref<string | null>(null)
+const editRequest = reactive({ type: 'ferias' as AbsenceType, startDate: '', endDate: '', notes: '' })
+
+const editingVacation = computed(() => vacations.value.find(v => v.id === editingVacationId.value) ?? null)
+
+function openEditModal(vacation: { id: string, type: AbsenceType, startDate: string, endDate: string, notes?: string }) {
+  editingVacationId.value = vacation.id
+  editRequest.type = vacation.type
+  editRequest.startDate = vacation.startDate
+  editRequest.endDate = vacation.endDate
+  editRequest.notes = vacation.notes ?? ''
+  isEditModalOpen.value = true
+}
+
+function submitEdit() {
+  if (!currentUser.value || !editingVacationId.value || !editRequest.startDate || !editRequest.endDate) return
+  if (editRequest.endDate < editRequest.startDate) return
+  updateVacation(editingVacationId.value, {
+    type: editRequest.type,
+    startDate: editRequest.startDate,
+    endDate: editRequest.endDate,
+    notes: editRequest.notes.trim() || undefined
+  }, currentUser.value.id)
+  isEditModalOpen.value = false
 }
 </script>
 
@@ -143,10 +233,10 @@ function submitRequest() {
     <div class="flex flex-wrap items-center justify-between gap-3">
       <div>
         <h1 class="text-2xl font-bold text-highlighted">
-          Mapa de férias
+          Ausências
         </h1>
         <p class="text-muted mt-1">
-          Calendário e pedidos de férias · {{ currentStore?.name }}
+          Calendário e pedidos de ausência · {{ currentStore?.name }}
         </p>
       </div>
       <UButton
@@ -195,11 +285,11 @@ function submitRequest() {
         </div>
       </template>
 
-      <div class="grid grid-cols-7 gap-1.5">
+      <div class="grid grid-cols-7 gap-1 sm:gap-1.5">
         <div
           v-for="label in weekdayLabels"
           :key="label"
-          class="text-xs font-medium text-muted text-center pb-1"
+          class="text-[10px] sm:text-xs font-medium text-muted text-center pb-1 truncate"
         >
           {{ label }}
         </div>
@@ -207,14 +297,32 @@ function submitRequest() {
         <div
           v-for="(cell, index) in calendarCells"
           :key="index"
-          class="min-h-20 rounded-lg border border-default p-1.5"
-          :class="cell.date && isToday(cell.date) ? 'border-primary bg-primary/5' : ''"
+          class="min-h-14 sm:min-h-20 rounded-lg border border-default p-1 sm:p-1.5"
+          :class="[
+            cell.date && isToday(cell.date) ? 'border-primary bg-primary/5' : '',
+            cell.iso && employeesOnVacationInStore(cell.iso).length > 0 ? 'cursor-pointer hover:border-primary/50 hover:bg-elevated/40 transition' : '',
+            cell.iso && employeesOnVacationInStore(cell.iso).length > 0 && !(cell.date && isToday(cell.date)) ? 'bg-elevated/60 sm:bg-transparent' : ''
+          ]"
+          @click="cell.date && cell.iso && employeesOnVacationInStore(cell.iso).length > 0 && openDayModal(cell.date, cell.iso)"
         >
           <template v-if="cell.date && cell.iso">
-            <p class="text-xs text-muted mb-1">
-              {{ cell.date.getDate() }}
-            </p>
-            <div class="flex flex-wrap gap-1">
+            <div class="flex items-center justify-between gap-1 sm:block">
+              <p class="text-[10px] sm:text-xs text-muted mb-1">
+                {{ cell.date.getDate() }}
+              </p>
+              <div
+                v-if="employeesOnVacationInStore(cell.iso).length > 0"
+                class="sm:hidden flex items-center gap-0.5 shrink-0"
+              >
+                <span
+                  v-for="type in absenceTypesForDay(cell.iso).slice(0, 4)"
+                  :key="type"
+                  class="size-2 rounded-full"
+                  :class="DOT_COLOR_CLASSES[ABSENCE_TYPE_COLORS[type]]"
+                />
+              </div>
+            </div>
+            <div class="hidden sm:flex -space-x-2">
               <PersonAvatar
                 v-for="person in employeesOnVacationInStore(cell.iso).slice(0, 3)"
                 :key="person.id"
@@ -222,10 +330,12 @@ function submitRequest() {
                 :color="person.color"
                 :photo-url="person.photoUrl"
                 size="sm"
+                class="ring-2"
+                :class="ringColorFor(person.id, cell.iso)"
               />
               <span
                 v-if="employeesOnVacationInStore(cell.iso).length > 3"
-                class="text-xs text-muted self-center"
+                class="text-[10px] sm:text-xs text-muted self-center ml-1.5"
               >
                 +{{ employeesOnVacationInStore(cell.iso).length - 3 }}
               </span>
@@ -300,7 +410,7 @@ function submitRequest() {
         v-if="filteredVacations.length === 0"
         class="text-sm text-muted py-4 text-center"
       >
-        Sem pedidos de férias nesta categoria.
+        Sem pedidos de ausência nesta categoria.
       </div>
 
       <ul
@@ -330,15 +440,21 @@ function submitRequest() {
             </div>
           </div>
 
-          <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-center gap-2">
+            <UBadge
+              :color="ABSENCE_TYPE_COLORS[vacation.type]"
+              variant="subtle"
+            >
+              {{ ABSENCE_TYPE_LABELS[vacation.type] }}
+            </UBadge>
             <UBadge
               :color="VACATION_STATUS_COLORS[vacation.status]"
-              variant="subtle"
+              variant="outline"
             >
               {{ vacation.status }}
             </UBadge>
             <UButton
-              v-if="isManager && vacation.status !== 'aprovado'"
+              v-if="canDecide(vacation) && vacation.status !== 'aprovado'"
               icon="i-lucide-check"
               color="success"
               variant="ghost"
@@ -346,12 +462,20 @@ function submitRequest() {
               @click="approve(vacation.id)"
             />
             <UButton
-              v-if="isManager && vacation.status !== 'rejeitado'"
+              v-if="canDecide(vacation) && vacation.status !== 'rejeitado'"
               icon="i-lucide-x"
               color="error"
               variant="ghost"
               size="xs"
               @click="reject(vacation.id)"
+            />
+            <UButton
+              v-if="canEdit(vacation)"
+              icon="i-lucide-pencil"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              @click="openEditModal(vacation)"
             />
             <UButton
               v-if="canRemove(vacation)"
@@ -406,6 +530,15 @@ function submitRequest() {
               {{ VACATION_AUDIT_LABELS[entry.action] }}
             </UBadge>
             o pedido de
+            <UBadge
+              :color="ABSENCE_TYPE_COLORS[entry.type]"
+              variant="subtle"
+              size="sm"
+              class="mx-1"
+            >
+              {{ ABSENCE_TYPE_LABELS[entry.type] }}
+            </UBadge>
+            de
             <span class="font-medium">{{ employeeById(entry.employeeId)?.name ?? 'colaborador removido' }}</span>
             ({{ formatDayMonth(parseISODate(entry.startDate)) }} — {{ formatDayMonth(parseISODate(entry.endDate)) }})
           </p>
@@ -426,29 +559,26 @@ function submitRequest() {
 
     <UModal
       v-model:open="isRequestModalOpen"
-      title="Novo pedido de férias"
+      title="Novo pedido de ausência"
     >
       <template #body>
         <div class="flex flex-col gap-4">
-          <UFormField
-            v-if="isManager"
-            label="Colaborador"
-          >
+          <UFormField label="Tipo">
             <USelectMenu
-              v-model="newRequest.employeeId"
+              v-model="newRequest.type"
               value-key="value"
-              :items="employeeOptions"
+              :items="ABSENCE_TYPE_OPTIONS"
               class="w-full"
             />
           </UFormField>
           <p
-            v-if="employeeById(newRequest.employeeId)"
+            v-if="newRequest.type === 'ferias' && currentUser"
             class="text-xs text-muted -mt-2"
           >
-            Saldo disponível: {{ balanceFor(employeeById(newRequest.employeeId)!).remaining }} dias
-            ({{ balanceFor(employeeById(newRequest.employeeId)!).allocated }} atribuídos ·
-            {{ balanceFor(employeeById(newRequest.employeeId)!).used }} usados ·
-            {{ balanceFor(employeeById(newRequest.employeeId)!).pending }} pendentes)
+            Saldo disponível: {{ balanceFor(employeeById(currentUser.id)!).remaining }} dias
+            ({{ balanceFor(employeeById(currentUser.id)!).allocated }} atribuídos ·
+            {{ balanceFor(employeeById(currentUser.id)!).used }} usados ·
+            {{ balanceFor(employeeById(currentUser.id)!).pending }} pendentes)
           </p>
           <div class="grid grid-cols-2 gap-4">
             <UFormField label="Início">
@@ -481,6 +611,110 @@ function submitRequest() {
           block
           @click="submitRequest"
         />
+      </template>
+    </UModal>
+
+    <UModal
+      v-model:open="isEditModalOpen"
+      title="Editar pedido de ausência"
+    >
+      <template #body>
+        <div class="flex flex-col gap-4">
+          <p
+            v-if="editingVacation?.status === 'aprovado'"
+            class="text-xs text-warning -mt-1"
+          >
+            Este pedido já está aprovado. Ao guardar, volta a ficar pendente de aprovação.
+          </p>
+          <UFormField label="Tipo">
+            <USelectMenu
+              v-model="editRequest.type"
+              value-key="value"
+              :items="ABSENCE_TYPE_OPTIONS"
+              class="w-full"
+            />
+          </UFormField>
+          <p
+            v-if="editRequest.type === 'ferias' && editingVacation"
+            class="text-xs text-muted -mt-2"
+          >
+            Saldo disponível: {{ balanceFor(employeeById(editingVacation.employeeId)!).remaining }} dias
+            ({{ balanceFor(employeeById(editingVacation.employeeId)!).allocated }} atribuídos ·
+            {{ balanceFor(employeeById(editingVacation.employeeId)!).used }} usados ·
+            {{ balanceFor(employeeById(editingVacation.employeeId)!).pending }} pendentes)
+          </p>
+          <div class="grid grid-cols-2 gap-4">
+            <UFormField label="Início">
+              <UInput
+                v-model="editRequest.startDate"
+                type="date"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField label="Fim">
+              <UInput
+                v-model="editRequest.endDate"
+                type="date"
+                class="w-full"
+              />
+            </UFormField>
+          </div>
+          <UFormField label="Notas">
+            <UInput
+              v-model="editRequest.notes"
+              placeholder="Opcional"
+              class="w-full"
+            />
+          </UFormField>
+        </div>
+      </template>
+      <template #footer>
+        <UButton
+          label="Guardar alterações"
+          block
+          @click="submitEdit"
+        />
+      </template>
+    </UModal>
+
+    <UModal
+      v-model:open="isDayModalOpen"
+      :title="selectedDay ? formatLong(selectedDay.date) : ''"
+    >
+      <template #body>
+        <ul class="flex flex-col gap-3">
+          <li
+            v-for="entry in selectedDayEmployees"
+            :key="entry.employee.id"
+            class="flex items-center gap-2.5"
+          >
+            <PersonAvatar
+              :name="entry.employee.name"
+              :color="entry.employee.color"
+              :photo-url="entry.employee.photoUrl"
+            />
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-highlighted truncate">
+                {{ entry.employee.name }}
+              </p>
+              <p
+                v-if="entry.vacation"
+                class="text-xs text-muted"
+              >
+                {{ formatDayMonth(parseISODate(entry.vacation.startDate)) }} — {{ formatDayMonth(parseISODate(entry.vacation.endDate)) }}
+              </p>
+            </div>
+            <UBadge
+              v-if="entry.vacation"
+              :color="ABSENCE_TYPE_COLORS[entry.vacation.type]"
+              variant="subtle"
+              size="sm"
+              class="shrink-0"
+            >
+              {{ ABSENCE_TYPE_LABELS[entry.vacation.type] }}
+            </UBadge>
+          </li>
+        </ul>
       </template>
     </UModal>
   </div>
