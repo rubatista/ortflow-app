@@ -71,7 +71,7 @@ function printPage() {
           {{ currentStore?.name }} · afixar em local visível (ACT)
         </p>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
         <UButton
           icon="i-lucide-chevron-left"
           color="neutral"
@@ -97,7 +97,7 @@ function printPage() {
           icon="i-lucide-arrow-left"
           color="neutral"
           variant="ghost"
-          to="/horarios"
+          to="/schedules"
         />
         <UButton
           label="Imprimir"

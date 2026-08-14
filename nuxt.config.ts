@@ -8,6 +8,10 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+  runtimeConfig: {
+    anthropicApiKey: process.env.ANTHROPIC_API_KEY
+  },
+
   routeRules: {
     '/': { prerender: true }
   },
@@ -24,6 +28,7 @@ export default defineNuxtConfig({
   },
 
   icon: {
+    mode: 'svg',
     clientBundle: {
       scan: true
     }
