@@ -1,4 +1,4 @@
-import type { AppNotification, Company, Employee, EmployeeSalesEntry, MonthlyTarget, ShiftAuditEntry, ShiftEntry, Store, StoreSalesEntry, VacationAuditAction, VacationAuditEntry, VacationRequest, VacationStatus, WeeklyTarget } from '~/types'
+import type { AbsenceType, AppNotification, Company, Employee, EmployeeSalesEntry, MonthlyTarget, ShiftAuditEntry, ShiftEntry, Store, StoreSalesEntry, VacationAuditAction, VacationAuditEntry, VacationRequest, VacationStatus, WeeklyTarget } from '~/types'
 import { BREAK_HOURS, BREAK_THRESHOLD_HOURS, DEFAULT_VACATION_DAYS_PER_YEAR } from '~/types'
 
 function seedCompanies(): Company[] {
@@ -71,6 +71,7 @@ function seedVacations(): VacationRequest[] {
     {
       id: 'vac-1',
       employeeId: 'emp-sara',
+      type: 'ferias',
       startDate: toISODate(addDays(today, 3)),
       endDate: toISODate(addDays(today, 10)),
       status: 'aprovado',
@@ -79,6 +80,7 @@ function seedVacations(): VacationRequest[] {
     {
       id: 'vac-2',
       employeeId: 'emp-eduarda',
+      type: 'ferias',
       startDate: toISODate(addDays(today, 14)),
       endDate: toISODate(addDays(today, 21)),
       status: 'pendente'
@@ -86,6 +88,7 @@ function seedVacations(): VacationRequest[] {
     {
       id: 'vac-3',
       employeeId: 'emp-ruben',
+      type: 'baixa_medica',
       startDate: toISODate(addDays(today, -5)),
       endDate: toISODate(addDays(today, -1)),
       status: 'aprovado'
@@ -93,6 +96,7 @@ function seedVacations(): VacationRequest[] {
     {
       id: 'vac-4',
       employeeId: 'emp-pedrocas',
+      type: 'ferias',
       startDate: toISODate(addDays(today, 30)),
       endDate: toISODate(addDays(today, 35)),
       status: 'pendente'
@@ -196,10 +200,10 @@ export function useAppData() {
   const stores = useLocalStorage<Store[]>('ortflow-stores-v2', seedStores(), { mergeDefaults: false })
   const employees = useLocalStorage<Employee[]>('ortflow-employees-v6', seedEmployees(), { mergeDefaults: false })
   const shifts = useLocalStorage<ShiftEntry[]>('ortflow-shifts-v6', seedShifts(), { mergeDefaults: false })
-  const vacations = useLocalStorage<VacationRequest[]>('ortflow-vacations-v3', seedVacations(), { mergeDefaults: false })
+  const vacations = useLocalStorage<VacationRequest[]>('ortflow-vacations-v4', seedVacations(), { mergeDefaults: false })
   const shiftAudit = useLocalStorage<ShiftAuditEntry[]>('ortflow-shift-audit-v1', [], { mergeDefaults: false })
   const notifications = useLocalStorage<AppNotification[]>('ortflow-notifications-v1', [], { mergeDefaults: false })
-  const vacationAudit = useLocalStorage<VacationAuditEntry[]>('ortflow-vacation-audit-v1', [], { mergeDefaults: false })
+  const vacationAudit = useLocalStorage<VacationAuditEntry[]>('ortflow-vacation-audit-v2', [], { mergeDefaults: false })
   const storeSales = useLocalStorage<StoreSalesEntry[]>('ortflow-store-sales-v2', seedStoreSales(), { mergeDefaults: false })
   const employeeSales = useLocalStorage<EmployeeSalesEntry[]>('ortflow-employee-sales-v3', seedEmployeeSales(), { mergeDefaults: false })
   const monthlyTargets = useLocalStorage<MonthlyTarget[]>('ortflow-monthly-targets-v2', seedMonthlyTargets(), { mergeDefaults: false })
@@ -320,10 +324,11 @@ export function useAppData() {
     vacations.value.push({ ...request, id: `vac-${crypto.randomUUID()}`, status: 'pendente' })
   }
 
-  function recordVacationAudit(request: { employeeId: string, startDate: string, endDate: string }, action: VacationAuditAction, changedByEmployeeId: string) {
+  function recordVacationAudit(request: { employeeId: string, type: AbsenceType, startDate: string, endDate: string }, action: VacationAuditAction, changedByEmployeeId: string) {
     vacationAudit.value.unshift({
       id: `vac-audit-${crypto.randomUUID()}`,
       employeeId: request.employeeId,
+      type: request.type,
       startDate: request.startDate,
       endDate: request.endDate,
       action,
@@ -347,6 +352,19 @@ export function useAppData() {
     vacations.value = vacations.value.filter(v => v.id !== id)
   }
 
+  /** Edita datas/tipo/notas de um pedido. Um pedido já aprovado volta a "pendente" — precisa de nova aprovação. */
+  function updateVacation(id: string, updates: { type: AbsenceType, startDate: string, endDate: string, notes?: string }, changedByEmployeeId: string) {
+    const request = vacations.value.find(v => v.id === id)
+    if (!request) return
+    const wasApproved = request.status === 'aprovado'
+    request.type = updates.type
+    request.startDate = updates.startDate
+    request.endDate = updates.endDate
+    request.notes = updates.notes
+    if (wasApproved) request.status = 'pendente'
+    recordVacationAudit(request, 'editado', changedByEmployeeId)
+  }
+
   function vacationAuditForStore(storeId: string) {
     const ids = new Set(employeesByStore(storeId).map(e => e.id))
     return vacationAudit.value.filter(a => ids.has(a.employeeId))
@@ -363,13 +381,13 @@ export function useAppData() {
 
   function vacationDaysUsed(employeeId: string, year: number) {
     return vacations.value
-      .filter(v => v.employeeId === employeeId && v.status === 'aprovado')
+      .filter(v => v.employeeId === employeeId && v.status === 'aprovado' && v.type === 'ferias')
       .reduce((total, v) => total + vacationDaysInYear(v.startDate, v.endDate, year), 0)
   }
 
   function vacationDaysPending(employeeId: string, year: number) {
     return vacations.value
-      .filter(v => v.employeeId === employeeId && v.status === 'pendente')
+      .filter(v => v.employeeId === employeeId && v.status === 'pendente' && v.type === 'ferias')
       .reduce((total, v) => total + vacationDaysInYear(v.startDate, v.endDate, year), 0)
   }
 
@@ -432,6 +450,11 @@ export function useAppData() {
     return employees.value.filter(e => ids.includes(e.id))
   }
 
+  /** Devolve o pedido de ausência aprovado (de qualquer tipo) que cobre este colaborador nesta data, se existir. */
+  function absenceOnDay(employeeId: string, date: string) {
+    return vacations.value.find(v => v.employeeId === employeeId && v.status === 'aprovado' && isDateInRange(date, v.startDate, v.endDate))
+  }
+
   return {
     companies,
     stores,
@@ -464,6 +487,7 @@ export function useAppData() {
     addVacation,
     setVacationStatus,
     removeVacation,
+    updateVacation,
     vacationAuditForStore,
     vacationDaysUsed,
     vacationDaysPending,
@@ -475,6 +499,7 @@ export function useAppData() {
     setMonthlyTarget,
     weeklyTargetFor,
     setWeeklyTarget,
-    employeesOnVacation
+    employeesOnVacation,
+    absenceOnDay
   }
 }

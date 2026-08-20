@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { ABSENCE_TYPE_COLORS, ABSENCE_TYPE_LABELS } from '~/types'
+
 const { employeesByStore, vacations, shiftFor, employeesOnVacation, storeSalesFor, weeklyTargetFor } = useAppData()
 const { currentStore } = useSession()
 
@@ -69,10 +71,10 @@ const upcomingVacations = computed(() => {
 })
 
 const stats = computed(() => [
-  { label: 'Colaboradores', value: storeEmployees.value.length, icon: 'i-lucide-users', color: 'primary' as const },
-  { label: 'Em turno hoje', value: todaySchedule.value.length, icon: 'i-lucide-calendar-clock', color: 'info' as const },
-  { label: 'Em férias hoje', value: onVacationToday.value.length, icon: 'i-lucide-tree-palm', color: 'warning' as const },
-  { label: 'Pedidos pendentes', value: pendingCount.value, icon: 'i-lucide-clock', color: 'secondary' as const }
+  { label: 'Colaboradores', value: storeEmployees.value.length, icon: 'i-lucide-users', color: 'primary' as const, to: '/team' },
+  { label: 'Em turno hoje', value: todaySchedule.value.length, icon: 'i-lucide-calendar-clock', color: 'info' as const, to: '/schedules' },
+  { label: 'Ausentes hoje', value: onVacationToday.value.length, icon: 'i-lucide-calendar-x', color: 'warning' as const, to: '/vacations' },
+  { label: 'Pedidos pendentes', value: pendingCount.value, icon: 'i-lucide-clock', color: 'secondary' as const, to: '/vacations' }
 ])
 
 function employeeById(id: string) {
@@ -91,21 +93,27 @@ function employeeById(id: string) {
       </p>
     </div>
 
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
       <UCard
         v-for="stat in stats"
         :key="stat.label"
+        :ui="{ body: 'p-3 sm:p-6' }"
+        class="cursor-pointer hover:ring-2 hover:ring-primary/40 transition"
+        @click="navigateTo(stat.to)"
       >
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2.5 sm:gap-3">
           <SectionIcon
             :icon="stat.icon"
             :color="stat.color"
           />
-          <div>
+          <div class="min-w-0">
             <p class="text-2xl font-bold text-highlighted leading-none">
               {{ stat.value }}
             </p>
-            <p class="text-sm text-muted mt-1">
+            <p
+              class="text-sm text-muted mt-1 break-words"
+              style="hyphens: auto"
+            >
               {{ stat.label }}
             </p>
           </div>
@@ -255,7 +263,7 @@ function employeeById(id: string) {
       <UCard>
         <template #header>
           <h2 class="font-semibold text-highlighted">
-            Próximas férias
+            Próximas ausências
           </h2>
         </template>
 
@@ -263,7 +271,7 @@ function employeeById(id: string) {
           v-if="upcomingVacations.length === 0"
           class="text-sm text-muted py-4 text-center"
         >
-          Sem férias agendadas nos próximos 30 dias.
+          Sem ausências agendadas nos próximos 30 dias.
         </div>
         <ul
           v-else
@@ -272,7 +280,7 @@ function employeeById(id: string) {
           <li
             v-for="vacation in upcomingVacations"
             :key="vacation.id"
-            class="flex items-center justify-between py-2.5"
+            class="flex flex-wrap items-center justify-between gap-2 py-2.5"
           >
             <div class="flex items-center gap-2.5">
               <PersonAvatar
@@ -291,10 +299,10 @@ function employeeById(id: string) {
               </div>
             </div>
             <UBadge
-              :color="vacation.status === 'aprovado' ? 'success' : 'warning'"
+              :color="ABSENCE_TYPE_COLORS[vacation.type]"
               variant="subtle"
             >
-              {{ vacation.status }}
+              {{ ABSENCE_TYPE_LABELS[vacation.type] }}
             </UBadge>
           </li>
         </ul>

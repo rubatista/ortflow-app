@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { COLOR_HEX, MAX_PHOTO_SIZE_BYTES, ROLE_COLORS, ROLE_LABELS, VACATION_STATUS_COLORS } from '~/types'
+import { ABSENCE_TYPE_COLORS, ABSENCE_TYPE_LABELS, COLOR_HEX, MAX_PHOTO_SIZE_BYTES, ROLE_COLORS, ROLE_LABELS, VACATION_STATUS_COLORS } from '~/types'
 
 const route = useRoute()
 const employeeId = computed(() => String(route.params.id))
 
-const { employeeById, storeById, shiftFor, vacations, employeeSalesFor, vacationDaysUsed, vacationDaysPending, setEmployeePhoto } = useAppData()
+const { employeeById, storeById, shiftFor, vacations, employeeSalesFor, vacationDaysUsed, vacationDaysPending, setEmployeePhoto, absenceOnDay } = useAppData()
 const { currentStore, currentUser } = useSession()
 const toast = useToast()
 
@@ -13,7 +13,7 @@ const employee = computed(() => employeeById(employeeId.value))
 onMounted(() => {
   const isOwnProfile = employee.value?.id === currentUser.value?.id
   if (!employee.value || (!isOwnProfile && employee.value.storeId !== currentStore.value?.id)) {
-    navigateTo('/equipas')
+    navigateTo('/team')
   }
 })
 
@@ -146,7 +146,7 @@ const employeeVacations = computed(() => {
         color="neutral"
         variant="ghost"
         size="sm"
-        to="/equipas"
+        to="/team"
       />
       <p class="text-sm text-muted">
         Equipa / {{ employee.name }}
@@ -389,11 +389,11 @@ const employeeVacations = computed(() => {
                 {{ formatWeekday(day) }} · {{ formatDayMonth(day) }}
               </p>
               <UBadge
-                v-if="isOnVacation(day)"
-                color="success"
+                v-if="absenceOnDay(employeeId, toISODate(day))"
+                :color="ABSENCE_TYPE_COLORS[absenceOnDay(employeeId, toISODate(day))!.type]"
                 variant="subtle"
               >
-                Férias
+                {{ ABSENCE_TYPE_LABELS[absenceOnDay(employeeId, toISODate(day))!.type] }}
               </UBadge>
               <UBadge
                 v-else
@@ -415,7 +415,7 @@ const employeeVacations = computed(() => {
                 size="sm"
               />
               <h2 class="font-semibold text-highlighted">
-                Histórico de férias
+                Histórico de ausências
               </h2>
             </div>
           </template>
@@ -424,7 +424,7 @@ const employeeVacations = computed(() => {
             v-if="employeeVacations.length === 0"
             class="text-sm text-muted py-4 text-center"
           >
-            Sem pedidos de férias registados.
+            Sem pedidos de ausência registados.
           </div>
           <ul
             v-else
@@ -433,17 +433,25 @@ const employeeVacations = computed(() => {
             <li
               v-for="vacation in employeeVacations"
               :key="vacation.id"
-              class="flex items-center justify-between py-2.5"
+              class="flex flex-wrap items-center justify-between gap-2 py-2.5"
             >
               <p class="text-sm text-highlighted">
                 {{ formatDayMonth(parseISODate(vacation.startDate)) }} — {{ formatDayMonth(parseISODate(vacation.endDate)) }}
               </p>
-              <UBadge
-                :color="VACATION_STATUS_COLORS[vacation.status]"
-                variant="subtle"
-              >
-                {{ vacation.status }}
-              </UBadge>
+              <div class="flex items-center gap-2">
+                <UBadge
+                  :color="ABSENCE_TYPE_COLORS[vacation.type]"
+                  variant="subtle"
+                >
+                  {{ ABSENCE_TYPE_LABELS[vacation.type] }}
+                </UBadge>
+                <UBadge
+                  :color="VACATION_STATUS_COLORS[vacation.status]"
+                  variant="outline"
+                >
+                  {{ vacation.status }}
+                </UBadge>
+              </div>
             </li>
           </ul>
         </UCard>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ROLE_ORDER } from '~/types'
+import { ABSENCE_TYPE_LABELS, ROLE_ORDER } from '~/types'
 
-const { employeesByStore, shiftFor, vacations } = useAppData()
+const { employeesByStore, shiftFor, absenceOnDay } = useAppData()
 const { currentStore } = useSession()
 
 const employees = computed(() => {
@@ -45,13 +45,9 @@ function weekLabel(weekStart: Date) {
   return `${formatDayMonth(weekStart)} — ${formatDayMonth(addDays(weekStart, 6))}`
 }
 
-function isOnVacation(employeeId: string, day: Date) {
-  const iso = toISODate(day)
-  return vacations.value.some(v => v.employeeId === employeeId && v.status === 'aprovado' && isDateInRange(iso, v.startDate, v.endDate))
-}
-
 function cellText(employeeId: string, day: Date) {
-  if (isOnVacation(employeeId, day)) return 'Férias'
+  const absence = absenceOnDay(employeeId, toISODate(day))
+  if (absence) return ABSENCE_TYPE_LABELS[absence.type]
   return shiftLabel(shiftFor(employeeId, toISODate(day)))
 }
 
@@ -71,7 +67,7 @@ function printPage() {
           {{ currentStore?.name }} · afixar em local visível (ACT)
         </p>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
         <UButton
           icon="i-lucide-chevron-left"
           color="neutral"
@@ -97,7 +93,7 @@ function printPage() {
           icon="i-lucide-arrow-left"
           color="neutral"
           variant="ghost"
-          to="/horarios"
+          to="/schedules"
         />
         <UButton
           label="Imprimir"

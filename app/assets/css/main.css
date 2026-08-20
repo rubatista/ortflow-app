@@ -2,6 +2,11 @@
 @import "@nuxt/ui";
 
 @layer base {
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
   button:not(:disabled):not([disabled]),
   [role='button']:not([aria-disabled='true']),
   a[href],

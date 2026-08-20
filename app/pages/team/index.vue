@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Role } from '~/types'
-import { AVATAR_COLORS, DEFAULT_VACATION_DAYS_PER_YEAR, MANAGER_ROLES, ROLE_COLORS, ROLE_LABELS, ROLE_ORDER, WEEKLY_HOURS_OPTIONS } from '~/types'
+import { AVATAR_COLORS, DEFAULT_VACATION_DAYS_PER_YEAR, MANAGER_ROLES, ROLE_COLORS, ROLE_GROUPS, ROLE_LABELS, ROLE_ORDER, WEEKLY_HOURS_OPTIONS } from '~/types'
 
 const { employeesByStore, addEmployee, removeEmployee } = useAppData()
 const { currentStore, currentUser } = useSession()
@@ -18,6 +18,15 @@ const storeEmployees = computed(() => {
   if (!currentStore.value) return []
   return [...employeesByStore(currentStore.value.id)]
     .sort((a, b) => ROLE_ORDER.indexOf(a.role) - ROLE_ORDER.indexOf(b.role))
+})
+
+const groupedEmployees = computed(() => {
+  return ROLE_GROUPS
+    .map(group => ({
+      ...group,
+      employees: storeEmployees.value.filter(e => group.roles.includes(e.role))
+    }))
+    .filter(group => group.employees.length > 0)
 })
 
 const isMemberModalOpen = ref(false)
@@ -77,50 +86,71 @@ async function confirmRemoveMember(id: string, name: string) {
       />
     </div>
 
-    <UCard>
+    <div
+      v-if="storeEmployees.length === 0"
+      class="text-sm text-muted py-8 text-center"
+    >
+      Sem colaboradores nesta loja.
+    </div>
+
+    <UCard
+      v-for="group in groupedEmployees"
+      :key="group.label"
+    >
       <template #header>
         <div class="flex items-center gap-2.5">
           <SectionIcon
-            icon="i-lucide-users"
-            color="primary"
+            :icon="group.icon"
+            :color="group.color"
             size="sm"
           />
           <h2 class="font-semibold text-highlighted">
-            Colaboradores
+            {{ group.label }}
           </h2>
           <UBadge
             color="neutral"
             variant="subtle"
             size="sm"
           >
-            {{ storeEmployees.length }}
+            {{ group.employees.length }}
           </UBadge>
         </div>
       </template>
 
       <ul class="divide-y divide-default">
         <li
-          v-for="member in storeEmployees"
+          v-for="member in group.employees"
           :key="member.id"
-          class="flex items-center justify-between gap-3 py-3 cursor-pointer hover:bg-elevated/40 rounded-lg px-2 -mx-2"
-          @click="navigateTo(`/equipas/${member.id}`)"
+          class="flex flex-col gap-2.5 py-3 cursor-pointer hover:bg-elevated/40 rounded-lg px-2 -mx-2"
+          @click="navigateTo(`/team/${member.id}`)"
         >
-          <div class="flex items-center gap-2.5 min-w-0">
-            <PersonAvatar
-              :name="member.name"
-              :color="member.color"
-              :photo-url="member.photoUrl"
-            />
-            <div class="min-w-0">
-              <p class="text-sm font-medium text-highlighted truncate">
-                {{ member.name }}
-              </p>
-              <p class="text-xs text-muted truncate">
-                {{ member.email }}
-              </p>
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <PersonAvatar
+                :name="member.name"
+                :color="member.color"
+                :photo-url="member.photoUrl"
+              />
+              <div class="min-w-0">
+                <p class="text-sm font-medium text-highlighted truncate">
+                  {{ member.name }}
+                </p>
+                <p class="text-xs text-muted truncate">
+                  {{ member.email }}
+                </p>
+              </div>
             </div>
+            <UButton
+              v-if="canManage"
+              icon="i-lucide-trash-2"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              class="shrink-0"
+              @click.stop="confirmRemoveMember(member.id, member.name)"
+            />
           </div>
-          <div class="flex items-center gap-2 shrink-0">
+          <div class="flex flex-wrap items-center gap-2">
             <UBadge
               :color="ROLE_COLORS[member.role]"
               variant="subtle"
@@ -139,21 +169,7 @@ async function confirmRemoveMember(id: string, name: string) {
             >
               {{ member.vacationDaysPerYear }} dias férias
             </UBadge>
-            <UButton
-              v-if="canManage"
-              icon="i-lucide-x"
-              color="neutral"
-              variant="ghost"
-              size="xs"
-              @click.stop="confirmRemoveMember(member.id, member.name)"
-            />
           </div>
-        </li>
-        <li
-          v-if="storeEmployees.length === 0"
-          class="text-sm text-muted py-4 text-center"
-        >
-          Sem colaboradores nesta loja.
         </li>
       </ul>
     </UCard>

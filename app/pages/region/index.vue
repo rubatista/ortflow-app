@@ -75,7 +75,7 @@ function enterStore(storeId: string) {
           Olá {{ currentUser?.name }} · comparação das {{ accessibleStores.length }} lojas que geres
         </p>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
         <UButton
           icon="i-lucide-chevron-left"
           color="neutral"
@@ -98,18 +98,18 @@ function enterStore(storeId: string) {
       </div>
     </div>
 
-    <div class="grid grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
       <UCard>
         <div class="flex items-center gap-3">
           <SectionIcon
             icon="i-lucide-users"
             color="primary"
           />
-          <div>
+          <div class="min-w-0">
             <p class="text-2xl font-bold text-highlighted leading-none">
               {{ regionStats.staffCount }}
             </p>
-            <p class="text-sm text-muted mt-1">
+            <p class="text-sm text-muted mt-1 break-words">
               Colaboradores
             </p>
           </div>
@@ -121,11 +121,11 @@ function enterStore(storeId: string) {
             icon="i-lucide-calendar-clock"
             color="info"
           />
-          <div>
+          <div class="min-w-0">
             <p class="text-2xl font-bold text-highlighted leading-none">
               {{ regionStats.onShiftToday }}
             </p>
-            <p class="text-sm text-muted mt-1">
+            <p class="text-sm text-muted mt-1 break-words">
               Em turno hoje
             </p>
           </div>
@@ -137,12 +137,12 @@ function enterStore(storeId: string) {
             icon="i-lucide-clock"
             color="warning"
           />
-          <div>
+          <div class="min-w-0">
             <p class="text-2xl font-bold text-highlighted leading-none">
               {{ regionStats.pendingVacations }}
             </p>
-            <p class="text-sm text-muted mt-1">
-              Férias pendentes
+            <p class="text-sm text-muted mt-1 break-words">
+              Ausências pendentes
             </p>
           </div>
         </div>
@@ -177,7 +177,7 @@ function enterStore(storeId: string) {
                 Em turno hoje
               </th>
               <th class="text-center font-medium text-muted pb-2 px-2">
-                Férias pendentes
+                Ausências pendentes
               </th>
               <th class="pb-2" />
             </tr>

@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import type { BadgeColor } from '~/types'
+
 const props = defineProps<{
   startTime: string | null
   endTime: string | null
   editable: boolean
-  onVacation: boolean
+  absenceLabel?: string | null
+  absenceColor?: BadgeColor
 }>()
 
 const emit = defineEmits<{
@@ -55,12 +58,12 @@ function setDayOff() {
 
 <template>
   <UBadge
-    v-if="onVacation"
-    color="success"
+    v-if="absenceLabel"
+    :color="absenceColor ?? 'success'"
     variant="subtle"
     class="w-full justify-center"
   >
-    Férias
+    {{ absenceLabel }}
   </UBadge>
   <UBadge
     v-else-if="!editable"

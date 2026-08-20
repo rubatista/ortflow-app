@@ -4,11 +4,11 @@ export default defineNuxtRouteMiddleware((to) => {
   const { currentUser, needsStoreSelection } = useSession()
 
   if (!currentUser.value) {
-    if (to.path !== '/entrar') return navigateTo('/entrar')
+    if (to.path !== '/login') return navigateTo('/login')
     return
   }
 
-  if (to.path === '/entrar') return navigateTo('/')
+  if (to.path === '/login') return navigateTo('/')
 
-  if (needsStoreSelection.value && to.path !== '/lojas') return navigateTo('/lojas')
+  if (needsStoreSelection.value && to.path !== '/stores') return navigateTo('/stores')
 })

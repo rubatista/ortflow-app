@@ -3,15 +3,23 @@ import { MANAGER_ROLES, ROLE_LABELS } from '~/types'
 
 useHead({
   meta: [
-    { name: 'viewport', content: 'width=device-width, initial-scale=1' }
+    { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+    { name: 'theme-color', content: '#10b981' }
   ],
   htmlAttrs: {
     lang: 'pt-PT'
-  }
+  },
+  link: [
+    { rel: 'icon', type: 'image/svg+xml', href: '/icon.svg' },
+    { rel: 'icon', type: 'image/png', sizes: '32x32', href: '/favicon-32x32.png' },
+    { rel: 'icon', type: 'image/png', sizes: '16x16', href: '/favicon-16x16.png' },
+    { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png' },
+    { rel: 'manifest', href: '/site.webmanifest' }
+  ]
 })
 
 const title = 'OrtFlow'
-const description = 'Gestão de equipas, horários e mapa de férias.'
+const description = 'Gestão de equipas, horários e ausências.'
 
 useSeoMeta({
   title,
@@ -31,16 +39,16 @@ const links = computed(() => {
     { label: 'Dashboard', to: '/', icon: 'i-lucide-layout-dashboard' }
   ]
   if (isRegional.value) {
-    items.push({ label: 'Painel regional', to: '/regiao', icon: 'i-lucide-building-2' })
+    items.push({ label: 'Painel regional', to: '/region', icon: 'i-lucide-building-2' })
   }
   items.push(
-    { label: 'Equipa', to: '/equipas', icon: 'i-lucide-users' },
-    { label: 'Horários', to: '/horarios', icon: 'i-lucide-calendar-clock' },
-    { label: 'Vendas', to: '/vendas', icon: 'i-lucide-trending-up' },
-    { label: 'Férias', to: '/ferias', icon: 'i-lucide-tree-palm' }
+    { label: 'Equipa', to: '/team', icon: 'i-lucide-users' },
+    { label: 'Horários', to: '/schedules', icon: 'i-lucide-calendar-clock' },
+    { label: 'Vendas', to: '/sales', icon: 'i-lucide-trending-up' },
+    { label: 'Ausências', to: '/vacations', icon: 'i-lucide-calendar-x' }
   )
   if (canManage.value) {
-    items.push({ label: 'Objetivos', to: '/objetivos', icon: 'i-lucide-target' })
+    items.push({ label: 'Objetivos', to: '/targets', icon: 'i-lucide-target' })
   }
   return items
 })
@@ -55,17 +63,17 @@ function markAllRead() {
 const userMenuItems = computed(() => {
   const actions = []
   if (currentUser.value) {
-    actions.push({ label: 'Perfil', icon: 'i-lucide-user', to: `/equipas/${currentUser.value.id}` })
+    actions.push({ label: 'Perfil', icon: 'i-lucide-user', to: `/team/${currentUser.value.id}` })
   }
   if (isRegional.value) {
-    actions.push({ label: 'Trocar loja', icon: 'i-lucide-store', to: '/lojas' })
+    actions.push({ label: 'Trocar loja', icon: 'i-lucide-store', to: '/stores' })
   }
   const logoutAction = [{
     label: 'Sair',
     icon: 'i-lucide-log-out',
     onSelect: () => {
       logout()
-      navigateTo('/entrar')
+      navigateTo('/login')
     }
   }]
   return [actions, logoutAction]
@@ -128,7 +136,7 @@ const userMenuItems = computed(() => {
               size="xs"
               block
               class="mt-2"
-              to="/lojas"
+              to="/stores"
             />
           </div>
         </template>
@@ -228,7 +236,7 @@ const userMenuItems = computed(() => {
         </template>
 
         <template #body>
-          <UContainer class="py-8 print:max-w-none print:p-0">
+          <UContainer class="py-8 px-0 print:max-w-none print:p-0">
             <NuxtPage />
           </UContainer>
         </template>
