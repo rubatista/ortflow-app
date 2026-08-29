@@ -9,7 +9,7 @@ Aplicação de gestão de equipas, horários e mapa de férias, construída com 
 - **Horários** — planeamento semanal de turnos (manhã / tarde / noite / folga) por colaborador.
 - **Mapa de férias** — calendário mensal e gestão de pedidos de férias (pendente / aprovado / rejeitado).
 
-Os dados são guardados numa base de dados SQLite (via [Drizzle ORM](https://orm.drizzle.team)) no servidor — ver [server/database/schema.ts](server/database/schema.ts) e [server/api](server/api). O acesso é feito com login real (email + password), usando [nuxt-auth-utils](https://github.com/atinux/nuxt-auth-utils).
+Os dados são guardados numa base de dados SQLite/[Turso](https://turso.tech) (via [Drizzle ORM](https://orm.drizzle.team)) no servidor — ver [server/database/schema.ts](server/database/schema.ts) e [server/api](server/api). O acesso é feito com login real (email + password), usando [nuxt-auth-utils](https://github.com/atinux/nuxt-auth-utils).
 
 ## Setup
 
@@ -39,3 +39,13 @@ npm run preview
 ```
 
 Consulta a [documentação de deployment do Nuxt](https://nuxt.com/docs/getting-started/deployment) para mais informações.
+
+### Deploy (Vercel ou outro serverless)
+
+Um ficheiro SQLite local não sobrevive em ambientes serverless (disco efémero) — em produção é obrigatório usar Turso:
+
+1. Instala a CLI da Turso e cria a base de dados: `turso db create ortflow`
+2. Obtém a URL: `turso db show ortflow --url`
+3. Cria um token: `turso db tokens create ortflow`
+4. Define `TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN` e `NUXT_SESSION_PASSWORD` nas variáveis de ambiente do projeto (ex: dashboard da Vercel)
+5. Aplica as migrações contra essa base de dados antes do primeiro deploy: `TURSO_DATABASE_URL=... TURSO_AUTH_TOKEN=... npm run db:migrate` (e `db:seed` se quiseres os dados de exemplo)
