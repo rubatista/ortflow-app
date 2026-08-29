@@ -71,9 +71,9 @@ const userMenuItems = computed(() => {
   const logoutAction = [{
     label: 'Sair',
     icon: 'i-lucide-log-out',
-    onSelect: () => {
-      logout()
-      navigateTo('/login')
+    onSelect: async () => {
+      await logout()
+      await navigateTo('/login')
     }
   }]
   return [actions, logoutAction]

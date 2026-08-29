@@ -1,22 +1,22 @@
 export function useSession() {
   const { employees, storeById } = useAppData()
+  const { user, clear } = useUserSession()
 
-  const currentUserId = useLocalStorage<string | null>('ortflow-session-user', null)
   const currentStoreId = useLocalStorage<string | null>('ortflow-session-store', null)
 
-  const currentUser = computed(() => employees.value.find(e => e.id === currentUserId.value) ?? null)
+  const currentUser = computed(() => employees.value.find(e => e.id === user.value?.id) ?? null)
 
   const isRegional = computed(() => currentUser.value?.role === 'gerente_regional')
 
   const accessibleStores = computed(() => {
-    const user = currentUser.value
-    if (!user) return []
+    const employee = currentUser.value
+    if (!employee) return []
     if (isRegional.value) {
-      return (user.managedStoreIds ?? [])
+      return (employee.managedStoreIds ?? [])
         .map(id => storeById(id))
         .filter((store): store is NonNullable<typeof store> => Boolean(store))
     }
-    const store = user.storeId ? storeById(user.storeId) : undefined
+    const store = employee.storeId ? storeById(employee.storeId) : undefined
     return store ? [store] : []
   })
 
@@ -30,14 +30,9 @@ export function useSession() {
     return currentUser.value.storeId ? storeById(currentUser.value.storeId) ?? null : null
   })
 
-  function login(employeeId: string) {
-    currentUserId.value = employeeId
+  async function logout() {
     currentStoreId.value = null
-  }
-
-  function logout() {
-    currentUserId.value = null
-    currentStoreId.value = null
+    await clear()
   }
 
   function selectStore(storeId: string) {
@@ -50,7 +45,6 @@ export function useSession() {
     accessibleStores,
     currentStore,
     needsStoreSelection,
-    login,
     logout,
     selectStore
   }

@@ -80,6 +80,7 @@ async function confirmRemoveMember(id: string, name: string) {
         </p>
       </div>
       <UButton
+        v-if="canManage"
         label="Novo colaborador"
         icon="i-lucide-user-plus"
         @click="openMemberModal"

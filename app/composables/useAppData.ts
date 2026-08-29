@@ -1,213 +1,79 @@
-import type { AbsenceType, AppNotification, Company, Employee, EmployeeSalesEntry, MonthlyTarget, ShiftAuditEntry, ShiftEntry, Store, StoreSalesEntry, VacationAuditAction, VacationAuditEntry, VacationRequest, VacationStatus, WeeklyTarget } from '~/types'
-import { BREAK_HOURS, BREAK_THRESHOLD_HOURS, DEFAULT_VACATION_DAYS_PER_YEAR } from '~/types'
+import type { AbsenceType, AppNotification, Company, Employee, EmployeeSalesEntry, MonthlyTarget, ShiftAuditEntry, ShiftEntry, Store, StoreSalesEntry, VacationAuditEntry, VacationRequest, VacationStatus, WeeklyTarget } from '~/types'
 
-function seedCompanies(): Company[] {
-  return [
-    { id: 'company-gng', name: 'GNG Franchising' }
-  ]
-}
-
-function seedStores(): Store[] {
-  return [
-    { id: 'store-vilacondo', companyId: 'company-gng', name: 'Levi\'s Vila do Conde (Outlet)', location: 'Vila do Conde' },
-    { id: 'store-norteshopping', companyId: 'company-gng', name: 'Nike NorteShopping', location: 'Matosinhos' },
-    { id: 'store-gaiashopping', companyId: 'company-gng', name: 'Salsa Gaia Shopping', location: 'Vila Nova de Gaia' }
-  ]
-}
-
-function seedEmployees(): Employee[] {
-  const vacationDaysPerYear = DEFAULT_VACATION_DAYS_PER_YEAR
-  return [
-    { id: 'emp-filipa', name: 'Filipa Nair', email: 'filipa.nair@ortflow.pt', role: 'gerente', companyId: 'company-gng', storeId: 'store-vilacondo', weeklyHours: 40, vacationDaysPerYear, color: 'blue' },
-    { id: 'emp-sergio', name: 'Sérgio Ronaldo', email: 'sergio.ronaldo@ortflow.pt', role: 'subgerente', companyId: 'company-gng', storeId: 'store-vilacondo', weeklyHours: 40, vacationDaysPerYear, color: 'cyan' },
-    { id: 'emp-diogo', name: 'Diogo Trigo', email: 'diogo.trigo@ortflow.pt', role: 'subgerente', companyId: 'company-gng', storeId: 'store-vilacondo', weeklyHours: 30, vacationDaysPerYear, color: 'sky' },
-    { id: 'emp-jose', name: 'José Albeto', email: 'jose.albeto@ortflow.pt', role: 'vendedor', companyId: 'company-gng', storeId: 'store-vilacondo', weeklyHours: 40, vacationDaysPerYear, color: 'violet' },
-    { id: 'emp-sara', name: 'Sara Costa', email: 'sara.costa@ortflow.pt', role: 'vendedor', companyId: 'company-gng', storeId: 'store-vilacondo', weeklyHours: 30, vacationDaysPerYear, color: 'purple' },
-    { id: 'emp-pedrocas', name: 'Pedrocas Silva', email: 'pedrocas.silva@ortflow.pt', role: 'assistente', companyId: 'company-gng', storeId: 'store-vilacondo', weeklyHours: 30, vacationDaysPerYear, color: 'fuchsia' },
-    { id: 'emp-leandro', name: 'Leandro Sousa', email: 'leandro.sousa@ortflow.pt', role: 'provador', companyId: 'company-gng', storeId: 'store-vilacondo', weeklyHours: 20, vacationDaysPerYear, color: 'pink' },
-
-    { id: 'emp-ines-rodrigues', name: 'Inês Rodrigues', email: 'ines.rodrigues@ortflow.pt', role: 'gerente', companyId: 'company-gng', storeId: 'store-norteshopping', weeklyHours: 40, vacationDaysPerYear, color: 'amber' },
-    { id: 'emp-eduarda', name: 'Eduarda Rodrigues', email: 'eduarda.rodrigues@ortflow.pt', role: 'vendedor', companyId: 'company-gng', storeId: 'store-norteshopping', weeklyHours: 40, vacationDaysPerYear, color: 'lime' },
-    { id: 'emp-ruben', name: 'Rúben Baptista', email: 'ruben.baptista@ortflow.pt', role: 'assistente', companyId: 'company-gng', storeId: 'store-norteshopping', weeklyHours: 20, vacationDaysPerYear, color: 'green' },
-
-    { id: 'emp-ines-castro', name: 'Ines Castro', email: 'ines.castro@ortflow.pt', role: 'gerente', companyId: 'company-gng', storeId: 'store-gaiashopping', weeklyHours: 40, vacationDaysPerYear, color: 'teal' },
-    { id: 'emp-lara', name: 'Lara Pinto', email: 'lara.pinto@ortflow.pt', role: 'vendedor', companyId: 'company-gng', storeId: 'store-gaiashopping', weeklyHours: 30, vacationDaysPerYear, color: 'orange' },
-    { id: 'emp-ines-costa', name: 'Ines Costa', email: 'ines.costa@ortflow.pt', role: 'vendedor', companyId: 'company-gng', storeId: 'store-gaiashopping', weeklyHours: 30, vacationDaysPerYear, color: 'orange' },
-
-    { id: 'emp-carlos', name: 'Carlos Braga', email: 'carlos.braga@ortflow.pt', role: 'gerente_regional', companyId: 'company-gng', managedStoreIds: ['store-vilacondo', 'store-norteshopping', 'store-gaiashopping'], weeklyHours: 40, vacationDaysPerYear, color: 'red' }
-  ]
-}
-
-function seedShifts(): ShiftEntry[] {
-  const employees = seedEmployees().filter(e => e.storeId)
-  const monday = startOfWeek(new Date())
-  const startPool = ['08:00', '09:00', '10:00', '13:00']
-  const shifts: ShiftEntry[] = []
-
-  for (const employee of employees) {
-    const workedHours = Math.max(4, Math.round((employee.weeklyHours / 5) * 2) / 2)
-    const offDays = new Set<number>()
-    while (offDays.size < 2) offDays.add(Math.floor(Math.random() * 7))
-
-    for (let i = 0; i < 7; i++) {
-      const date = toISODate(addDays(monday, i))
-      if (offDays.has(i)) {
-        shifts.push({ id: `${employee.id}-${date}`, employeeId: employee.id, date, startTime: null, endTime: null })
-      } else {
-        const startTime = startPool[Math.floor(Math.random() * startPool.length)]!
-        const span = workedHours > BREAK_THRESHOLD_HOURS ? workedHours + BREAK_HOURS : workedHours
-        const endTime = addHoursToTime(startTime, span)
-        shifts.push({ id: `${employee.id}-${date}`, employeeId: employee.id, date, startTime, endTime })
-      }
-    }
-  }
-
-  return shifts
-}
-
-function seedVacations(): VacationRequest[] {
-  const today = new Date()
-  return [
-    {
-      id: 'vac-1',
-      employeeId: 'emp-sara',
-      type: 'ferias',
-      startDate: toISODate(addDays(today, 3)),
-      endDate: toISODate(addDays(today, 10)),
-      status: 'aprovado',
-      notes: 'Férias de verão'
-    },
-    {
-      id: 'vac-2',
-      employeeId: 'emp-eduarda',
-      type: 'ferias',
-      startDate: toISODate(addDays(today, 14)),
-      endDate: toISODate(addDays(today, 21)),
-      status: 'pendente'
-    },
-    {
-      id: 'vac-3',
-      employeeId: 'emp-ruben',
-      type: 'baixa_medica',
-      startDate: toISODate(addDays(today, -5)),
-      endDate: toISODate(addDays(today, -1)),
-      status: 'aprovado'
-    },
-    {
-      id: 'vac-4',
-      employeeId: 'emp-pedrocas',
-      type: 'ferias',
-      startDate: toISODate(addDays(today, 30)),
-      endDate: toISODate(addDays(today, 35)),
-      status: 'pendente'
-    }
-  ]
-}
-
-const STORE_WEEKLY_BASELINE: Record<string, number> = {
-  'store-vilacondo': 29657,
-  'store-norteshopping': 24500,
-  'store-gaiashopping': 19800
-}
-
-function seedStoreSales(): StoreSalesEntry[] {
-  const stores = seedStores()
-  const monday = startOfWeek(new Date())
-  const today = new Date()
-  const entries: StoreSalesEntry[] = []
-
-  for (const store of stores) {
-    const dailyTarget = (STORE_WEEKLY_BASELINE[store.id] ?? 25000) / 7
-    for (let i = 0; i < 7; i++) {
-      const date = addDays(monday, i)
-      if (date > today) break
-      const iso = toISODate(date)
-      const target = Math.round(dailyTarget)
-      const achieved = Math.round(target * (0.75 + Math.random() * 0.35))
-      const totalClients = Math.round(achieved / (9 + Math.random() * 3))
-      const totalReceipts = Math.round(totalClients * 0.15)
-      const returns = Math.round(totalReceipts * 0.05)
-      const units = Math.round((totalReceipts - returns) * 1.7)
-      entries.push({ id: `sales-${store.id}-${iso}`, storeId: store.id, date: iso, target, achieved, totalClients, totalReceipts, returns, units })
-    }
-  }
-  return entries
-}
-
-function seedEmployeeSales(): EmployeeSalesEntry[] {
-  const sellers = seedEmployees().filter(e => e.role === 'vendedor' && e.storeId)
-  const storeSales = seedStoreSales()
-  const monday = startOfWeek(new Date())
-  const today = new Date()
-  const entries: EmployeeSalesEntry[] = []
-
-  const sellersByStore = new Map<string, Employee[]>()
-  for (const seller of sellers) {
-    const list = sellersByStore.get(seller.storeId!) ?? []
-    list.push(seller)
-    sellersByStore.set(seller.storeId!, list)
-  }
-
-  for (let i = 0; i < 7; i++) {
-    const date = addDays(monday, i)
-    if (date > today) break
-    const iso = toISODate(date)
-
-    for (const [storeId, storeSellers] of sellersByStore) {
-      const dayEntry = storeSales.find(s => s.storeId === storeId && s.date === iso)
-      if (!dayEntry) continue
-
-      const weights = storeSellers.map(() => 0.6 + Math.random() * 0.8)
-      const weightSum = weights.reduce((sum, w) => sum + w, 0)
-
-      storeSellers.forEach((seller, idx) => {
-        const share = weights[idx]! / weightSum
-        const target = Math.round(dayEntry.target * share)
-        const salesValue = Math.round(dayEntry.achieved * share)
-        const clientsServed = Math.max(1, Math.round(salesValue / (10 + Math.random() * 4)))
-        const units = Math.round(clientsServed * (1.3 + Math.random() * 0.6))
-        entries.push({ id: `esales-${seller.id}-${iso}`, employeeId: seller.id, date: iso, salesValue, units, clientsServed, target })
-      })
-    }
-  }
-  return entries
-}
-
-function seedWeeklyTargets(): WeeklyTarget[] {
-  const stores = seedStores()
-  const weekStart = toISODate(startOfWeek(new Date()))
-  return stores.map(store => ({
-    id: `wtarget-${store.id}`,
-    storeId: store.id,
-    weekStart,
-    target: STORE_WEEKLY_BASELINE[store.id] ?? 25000
-  }))
-}
-
-function seedMonthlyTargets(): MonthlyTarget[] {
-  const stores = seedStores()
-  const month = toISODate(startOfMonth(new Date())).slice(0, 7)
-  return stores.map(store => ({
-    id: `mtarget-${store.id}`,
-    storeId: store.id,
-    month,
-    target: Math.round((STORE_WEEKLY_BASELINE[store.id] ?? 25000) * 4.33)
-  }))
+interface BootstrapResponse {
+  companies: Company[]
+  stores: Store[]
+  employees: Employee[]
+  shifts: ShiftEntry[]
+  vacations: VacationRequest[]
+  shiftAudit: ShiftAuditEntry[]
+  notifications: AppNotification[]
+  vacationAudit: VacationAuditEntry[]
+  storeSales: StoreSalesEntry[]
+  employeeSales: EmployeeSalesEntry[]
+  monthlyTargets: MonthlyTarget[]
+  weeklyTargets: WeeklyTarget[]
 }
 
 export function useAppData() {
-  const companies = useLocalStorage<Company[]>('ortflow-companies-v2', seedCompanies(), { mergeDefaults: false })
-  const stores = useLocalStorage<Store[]>('ortflow-stores-v2', seedStores(), { mergeDefaults: false })
-  const employees = useLocalStorage<Employee[]>('ortflow-employees-v6', seedEmployees(), { mergeDefaults: false })
-  const shifts = useLocalStorage<ShiftEntry[]>('ortflow-shifts-v6', seedShifts(), { mergeDefaults: false })
-  const vacations = useLocalStorage<VacationRequest[]>('ortflow-vacations-v4', seedVacations(), { mergeDefaults: false })
-  const shiftAudit = useLocalStorage<ShiftAuditEntry[]>('ortflow-shift-audit-v1', [], { mergeDefaults: false })
-  const notifications = useLocalStorage<AppNotification[]>('ortflow-notifications-v1', [], { mergeDefaults: false })
-  const vacationAudit = useLocalStorage<VacationAuditEntry[]>('ortflow-vacation-audit-v2', [], { mergeDefaults: false })
-  const storeSales = useLocalStorage<StoreSalesEntry[]>('ortflow-store-sales-v2', seedStoreSales(), { mergeDefaults: false })
-  const employeeSales = useLocalStorage<EmployeeSalesEntry[]>('ortflow-employee-sales-v3', seedEmployeeSales(), { mergeDefaults: false })
-  const monthlyTargets = useLocalStorage<MonthlyTarget[]>('ortflow-monthly-targets-v2', seedMonthlyTargets(), { mergeDefaults: false })
-  const weeklyTargets = useLocalStorage<WeeklyTarget[]>('ortflow-weekly-targets-v2', seedWeeklyTargets(), { mergeDefaults: false })
+  const companies = useState<Company[]>('app-data-companies', () => [])
+  const stores = useState<Store[]>('app-data-stores', () => [])
+  const employees = useState<Employee[]>('app-data-employees', () => [])
+  const shifts = useState<ShiftEntry[]>('app-data-shifts', () => [])
+  const vacations = useState<VacationRequest[]>('app-data-vacations', () => [])
+  const shiftAudit = useState<ShiftAuditEntry[]>('app-data-shift-audit', () => [])
+  const notifications = useState<AppNotification[]>('app-data-notifications', () => [])
+  const vacationAudit = useState<VacationAuditEntry[]>('app-data-vacation-audit', () => [])
+  const storeSales = useState<StoreSalesEntry[]>('app-data-store-sales', () => [])
+  const employeeSales = useState<EmployeeSalesEntry[]>('app-data-employee-sales', () => [])
+  const monthlyTargets = useState<MonthlyTarget[]>('app-data-monthly-targets', () => [])
+  const weeklyTargets = useState<WeeklyTarget[]>('app-data-weekly-targets', () => [])
+  const bootstrapped = useState('app-data-bootstrapped', () => false)
+
+  const toast = useToast()
+
+  async function loadBootstrapData() {
+    const data = await $fetch<BootstrapResponse>('/api/bootstrap', {
+      headers: import.meta.server ? useRequestHeaders(['cookie']) : undefined
+    })
+    companies.value = data.companies
+    stores.value = data.stores
+    employees.value = data.employees
+    shifts.value = data.shifts
+    vacations.value = data.vacations
+    shiftAudit.value = data.shiftAudit
+    notifications.value = data.notifications
+    vacationAudit.value = data.vacationAudit
+    storeSales.value = data.storeSales
+    employeeSales.value = data.employeeSales
+    monthlyTargets.value = data.monthlyTargets
+    weeklyTargets.value = data.weeklyTargets
+    bootstrapped.value = true
+  }
+
+  let bootstrapPromise: Promise<void> | null = null
+
+  /** Carrega os dados do servidor uma única vez por sessão de app. Chamado a partir do middleware de autenticação antes de renderizar qualquer página. */
+  async function ensureBootstrapped() {
+    if (bootstrapped.value) return
+    if (!bootstrapPromise) {
+      bootstrapPromise = loadBootstrapData().finally(() => {
+        bootstrapPromise = null
+      })
+    }
+    return bootstrapPromise
+  }
+
+  /** Reverte uma mutação otimista falhada, ressincronizando com o servidor. */
+  function reportMutationError(error: unknown) {
+    console.error(error)
+    toast.add({
+      title: 'Não foi possível guardar a alteração',
+      description: 'A app vai sincronizar novamente com o servidor.',
+      color: 'error'
+    })
+    loadBootstrapData().catch(err => console.error(err))
+  }
 
   function companyById(id: string) {
     return companies.value.find(c => c.id === id)
@@ -230,18 +96,22 @@ export function useAppData() {
   }
 
   function addEmployee(employee: Omit<Employee, 'id'>) {
-    employees.value.push({ ...employee, id: `emp-${crypto.randomUUID()}` })
+    const record = { ...employee, id: `emp-${crypto.randomUUID()}` }
+    employees.value.push(record)
+    $fetch('/api/employees', { method: 'POST', body: record }).catch(reportMutationError)
   }
 
   function removeEmployee(id: string) {
     employees.value = employees.value.filter(e => e.id !== id)
     shifts.value = shifts.value.filter(s => s.employeeId !== id)
     vacations.value = vacations.value.filter(v => v.employeeId !== id)
+    $fetch(`/api/employees/${id}`, { method: 'DELETE' }).catch(reportMutationError)
   }
 
   function setEmployeePhoto(id: string, photoUrl: string | null) {
     const employee = employeeById(id)
     if (employee) employee.photoUrl = photoUrl
+    $fetch(`/api/employees/${id}/photo`, { method: 'PATCH', body: { photoUrl } }).catch(reportMutationError)
   }
 
   function recordShiftChange(employeeId: string, date: string, changedByEmployeeId: string, previousLabel: string, newLabel: string) {
@@ -268,6 +138,10 @@ export function useAppData() {
     })
   }
 
+  function persistShift(employeeId: string, date: string, startTime: string | null, endTime: string | null) {
+    $fetch('/api/shifts', { method: 'PUT', body: { employeeId, date, startTime, endTime } }).catch(reportMutationError)
+  }
+
   function setShiftTimes(employeeId: string, date: string, startTime: string, endTime: string, changedByEmployeeId: string) {
     const existing = shifts.value.find(s => s.employeeId === employeeId && s.date === date)
     const previousLabel = shiftLabel(existing)
@@ -278,6 +152,7 @@ export function useAppData() {
       shifts.value.push({ id: `${employeeId}-${date}`, employeeId, date, startTime, endTime })
     }
     recordShiftChange(employeeId, date, changedByEmployeeId, previousLabel, shiftLabel({ startTime, endTime }))
+    persistShift(employeeId, date, startTime, endTime)
   }
 
   function setDayOff(employeeId: string, date: string, changedByEmployeeId: string) {
@@ -290,6 +165,7 @@ export function useAppData() {
       shifts.value.push({ id: `${employeeId}-${date}`, employeeId, date, startTime: null, endTime: null })
     }
     recordShiftChange(employeeId, date, changedByEmployeeId, previousLabel, 'Folga')
+    persistShift(employeeId, date, null, null)
   }
 
   function shiftFor(employeeId: string, date: string) {
@@ -312,19 +188,23 @@ export function useAppData() {
   function markNotificationRead(id: string) {
     const notification = notifications.value.find(n => n.id === id)
     if (notification) notification.read = true
+    $fetch(`/api/notifications/${id}/read`, { method: 'PATCH' }).catch(reportMutationError)
   }
 
   function markAllNotificationsRead(employeeId: string) {
     for (const notification of notifications.value) {
       if (notification.employeeId === employeeId) notification.read = true
     }
+    $fetch('/api/notifications/read-all', { method: 'POST' }).catch(reportMutationError)
   }
 
   function addVacation(request: Omit<VacationRequest, 'id' | 'status'>) {
-    vacations.value.push({ ...request, id: `vac-${crypto.randomUUID()}`, status: 'pendente' })
+    const record = { ...request, id: `vac-${crypto.randomUUID()}`, status: 'pendente' as VacationStatus }
+    vacations.value.push(record)
+    $fetch('/api/vacations', { method: 'POST', body: record }).catch(reportMutationError)
   }
 
-  function recordVacationAudit(request: { employeeId: string, type: AbsenceType, startDate: string, endDate: string }, action: VacationAuditAction, changedByEmployeeId: string) {
+  function recordVacationAudit(request: { employeeId: string, type: AbsenceType, startDate: string, endDate: string }, action: VacationAuditEntry['action'], changedByEmployeeId: string) {
     vacationAudit.value.unshift({
       id: `vac-audit-${crypto.randomUUID()}`,
       employeeId: request.employeeId,
@@ -344,12 +224,14 @@ export function useAppData() {
     if (status === 'aprovado' || status === 'rejeitado') {
       recordVacationAudit(request, status, changedByEmployeeId)
     }
+    $fetch(`/api/vacations/${id}/status`, { method: 'PATCH', body: { status } }).catch(reportMutationError)
   }
 
   function removeVacation(id: string, changedByEmployeeId: string) {
     const request = vacations.value.find(v => v.id === id)
     if (request) recordVacationAudit(request, 'eliminado', changedByEmployeeId)
     vacations.value = vacations.value.filter(v => v.id !== id)
+    $fetch(`/api/vacations/${id}`, { method: 'DELETE' }).catch(reportMutationError)
   }
 
   /** Edita datas/tipo/notas de um pedido. Um pedido já aprovado volta a "pendente" — precisa de nova aprovação. */
@@ -363,6 +245,7 @@ export function useAppData() {
     request.notes = updates.notes
     if (wasApproved) request.status = 'pendente'
     recordVacationAudit(request, 'editado', changedByEmployeeId)
+    $fetch(`/api/vacations/${id}`, { method: 'PUT', body: updates }).catch(reportMutationError)
   }
 
   function vacationAuditForStore(storeId: string) {
@@ -402,6 +285,7 @@ export function useAppData() {
     } else {
       storeSales.value.push({ id: `sales-${crypto.randomUUID()}`, storeId, date, ...data })
     }
+    $fetch('/api/store-sales', { method: 'PUT', body: { storeId, date, ...data } }).catch(reportMutationError)
   }
 
   function employeeSalesFor(employeeId: string, date: string) {
@@ -415,6 +299,7 @@ export function useAppData() {
     } else {
       employeeSales.value.push({ id: `esales-${crypto.randomUUID()}`, employeeId, date, ...data })
     }
+    $fetch('/api/employee-sales', { method: 'PUT', body: { employeeId, date, ...data } }).catch(reportMutationError)
   }
 
   function monthlyTargetFor(storeId: string, month: string) {
@@ -428,6 +313,7 @@ export function useAppData() {
     } else {
       monthlyTargets.value.push({ id: `mtarget-${crypto.randomUUID()}`, storeId, month, target })
     }
+    $fetch('/api/targets/monthly', { method: 'PUT', body: { storeId, month, target } }).catch(reportMutationError)
   }
 
   function weeklyTargetFor(storeId: string, weekStart: string) {
@@ -441,6 +327,7 @@ export function useAppData() {
     } else {
       weeklyTargets.value.push({ id: `wtarget-${crypto.randomUUID()}`, storeId, weekStart, target })
     }
+    $fetch('/api/targets/weekly', { method: 'PUT', body: { storeId, weekStart, target } }).catch(reportMutationError)
   }
 
   function employeesOnVacation(date: string) {
@@ -468,6 +355,7 @@ export function useAppData() {
     employeeSales,
     monthlyTargets,
     weeklyTargets,
+    ensureBootstrapped,
     companyById,
     storeById,
     storesByCompany,
